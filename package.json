@@ -1,0 +1,12 @@
+{
+  "name": "remind-me-app",
+  "version": "1.0.0",
+  "description": "Remind Me - Daily Task & Event Reminder Web Application with Device Clock/Calendar Sync and Alarms",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "keywords": ["react", "remind-me", "task-reminder", "calendar", "alarm", "productivity"],
+  "author": "Senior React Developer",
+  "license": "MIT"
+}

@@ -1,0 +1,1575 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Remind me</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🔔</text></svg>">
+
+  <!-- Local Preact & Hooks UMD (100% Offline, Zero External CDNs) -->
+  <script src="vendor/preact.umd.js"></script>
+  <script src="vendor/hooks.umd.js"></script>
+  <script src="vendor/compat.umd.js"></script>
+
+  <style>
+    /* Reset & Base */
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      background-color: #0f172a;
+      color: #1e293b;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0;
+      -webkit-font-smoothing: antialiased;
+    }
+    @media (min-width: 640px) {
+      body {
+        padding: 20px;
+      }
+    }
+
+    /* Container Shell */
+    #root {
+      width: 100%;
+      max-width: 440px;
+      margin: 0 auto;
+    }
+    .app-card {
+      background: #f8fafc;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      position: relative;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.4);
+      border: 1px solid #e2e8f0;
+      overflow: hidden;
+    }
+    @media (min-width: 640px) {
+      .app-card {
+        min-height: 840px;
+        border-radius: 36px;
+      }
+    }
+
+    /* Header: "Remind me" */
+    .main-header {
+      background: white;
+      padding: 16px 20px;
+      border-bottom: 1px solid #f1f5f9;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 30;
+    }
+    .app-title-group {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      cursor: pointer;
+    }
+    .app-logo {
+      width: 40px;
+      height: 40px;
+      border-radius: 12px;
+      background: linear-gradient(135deg, #14b8a6, #0d9488);
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      box-shadow: 0 4px 10px rgba(13, 148, 136, 0.25);
+    }
+    .app-title {
+      font-size: 22px;
+      font-weight: 800;
+      color: #0f172a;
+      letter-spacing: -0.5px;
+    }
+
+    /* Linked Device Clock & Calendar */
+    .device-sync-badge {
+      text-align: right;
+    }
+    .clock-display {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px;
+      background: #f1f5f9;
+      border: 1px solid #cbd5e1;
+      border-radius: 9999px;
+      font-family: monospace;
+      font-size: 12px;
+      font-weight: 700;
+      color: #0f766e;
+    }
+    .live-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: #10b981;
+      animation: pulse 1.5s infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.4; transform: scale(0.8); }
+    }
+    .date-display {
+      font-size: 11px;
+      color: #64748b;
+      margin-top: 2px;
+      font-weight: 600;
+    }
+
+    /* Main Scrollable Content */
+    .content-area {
+      flex: 1;
+      padding: 20px;
+      padding-bottom: 90px;
+      overflow-y: auto;
+    }
+
+    /* "what's upcoming" Section */
+    .upcoming-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+    }
+    .upcoming-title {
+      font-size: 19px;
+      font-weight: 800;
+      color: #0f172a;
+      text-transform: capitalize;
+    }
+    .add-task-quick-btn {
+      background: #0d9488;
+      color: white;
+      border: none;
+      padding: 6px 14px;
+      border-radius: 12px;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      box-shadow: 0 2px 6px rgba(13, 148, 136, 0.25);
+      transition: background 0.2s;
+    }
+    .add-task-quick-btn:hover {
+      background: #0f766e;
+    }
+
+    /* Task Card in Pastel Color */
+    .task-card {
+      border-radius: 18px;
+      padding: 16px;
+      border-width: 1.5px;
+      border-style: solid;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: flex-start;
+      gap: 14px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.03);
+      transition: all 0.2s;
+    }
+    .task-card.completed {
+      background: #f8fafc !important;
+      border-color: #e2e8f0 !important;
+      opacity: 0.65;
+    }
+    .task-card.completed .task-title {
+      text-decoration: line-through;
+      color: #94a3b8 !important;
+    }
+
+    /* The Tick Box Beside the Task */
+    .tick-box {
+      width: 26px;
+      height: 26px;
+      border-radius: 8px;
+      border: 2px solid #94a3b8;
+      background: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      flex-shrink: 0;
+      margin-top: 1px;
+      transition: all 0.15s;
+    }
+    .tick-box:hover {
+      border-color: #0d9488;
+      transform: scale(1.1);
+    }
+    .tick-box.checked {
+      background: #10b981;
+      border-color: #10b981;
+      color: white;
+      font-weight: 900;
+      font-size: 15px;
+    }
+
+    .task-details {
+      flex: 1;
+      min-width: 0;
+    }
+    .task-title {
+      font-size: 15px;
+      font-weight: 700;
+      color: #0f172a;
+      margin-bottom: 6px;
+      word-break: break-word;
+    }
+    .task-time-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      background: rgba(255, 255, 255, 0.95);
+      padding: 3px 8px;
+      border-radius: 8px;
+      font-size: 11px;
+      font-weight: 700;
+      color: #334155;
+      border: 1px solid rgba(0,0,0,0.06);
+    }
+    .task-tag-pill {
+      display: inline-block;
+      margin-left: 6px;
+      padding: 3px 8px;
+      border-radius: 8px;
+      font-size: 11px;
+      font-weight: 800;
+      background: rgba(255, 255, 255, 0.95);
+      border: 1px solid rgba(0,0,0,0.06);
+    }
+
+    /* Empty State (When starting fresh with 0 tasks) */
+    .empty-state-box {
+      background: white;
+      border: 2px dashed #cbd5e1;
+      border-radius: 24px;
+      padding: 40px 20px;
+      text-align: center;
+      margin-top: 10px;
+    }
+    .empty-icon {
+      font-size: 44px;
+      margin-bottom: 12px;
+    }
+    .empty-heading {
+      font-size: 16px;
+      font-weight: 800;
+      color: #1e293b;
+      margin-bottom: 6px;
+    }
+    .empty-subtext {
+      font-size: 12px;
+      color: #64748b;
+      margin-bottom: 20px;
+      max-width: 260px;
+      margin-left: auto;
+      margin-right: auto;
+      line-height: 1.5;
+    }
+
+    /* Popup: "Congratulations, you remembered your task" */
+    .congrats-popup {
+      position: fixed;
+      top: 80px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 99;
+      width: 90%;
+      max-width: 380px;
+      background: linear-gradient(135deg, #10b981, #0d9488);
+      color: white;
+      padding: 16px 18px;
+      border-radius: 20px;
+      box-shadow: 0 20px 25px -5px rgba(16, 185, 129, 0.4);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      animation: popIn 0.3s ease-out;
+    }
+    @keyframes popIn {
+      0% { opacity: 0; transform: translate(-50%, -20px) scale(0.9); }
+      100% { opacity: 1; transform: translate(-50%, 0) scale(1); }
+    }
+
+    /* Active Alarm Modal */
+    .alarm-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.65);
+      backdrop-filter: blur(4px);
+      z-index: 100;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+    }
+    .alarm-box {
+      background: white;
+      border-radius: 28px;
+      padding: 24px;
+      width: 100%;
+      max-width: 340px;
+      text-align: center;
+      border: 4px solid #f59e0b;
+      box-shadow: 0 25px 50px rgba(245, 158, 11, 0.35);
+      animation: popIn 0.3s ease-out;
+    }
+
+    /* Screen 2: "Create New Task" Screen - The 6 Buttons */
+    .create-task-screen {
+      animation: fadeIn 0.25s ease-out;
+    }
+    @keyframes fadeIn {
+      0% { opacity: 0; transform: translateY(6px); }
+      100% { opacity: 1; transform: translateY(0); }
+    }
+    .screen-header {
+      margin-bottom: 18px;
+    }
+    .screen-title {
+      font-size: 22px;
+      font-weight: 800;
+      color: #0f172a;
+    }
+    .screen-desc {
+      font-size: 12px;
+      color: #64748b;
+      margin-top: 2px;
+    }
+    .control-button-card {
+      background: white;
+      border: 1px solid #e2e8f0;
+      border-radius: 16px;
+      padding: 14px 16px;
+      margin-bottom: 12px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+    }
+    .control-label {
+      font-size: 12px;
+      font-weight: 800;
+      color: #0f172a;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-bottom: 8px;
+    }
+    .control-num {
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: #0d9488;
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      font-weight: 800;
+    }
+    .form-input {
+      width: 100%;
+      padding: 10px 14px;
+      border-radius: 12px;
+      border: 1px solid #cbd5e1;
+      font-size: 14px;
+      color: #0f172a;
+      outline: none;
+    }
+    .form-input:focus {
+      border-color: #0d9488;
+      box-shadow: 0 0 0 3px rgba(13, 148, 136, 0.15);
+    }
+
+    /* Screen 3: Result Screen */
+    .result-screen {
+      text-align: center;
+      padding: 30px 10px;
+      animation: fadeIn 0.3s ease-out;
+    }
+    .huge-tick-circle {
+      width: 130px;
+      height: 130px;
+      border-radius: 50%;
+      background: #ecfdf5;
+      border: 5px solid #10b981;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 10px auto 20px;
+      box-shadow: 0 10px 25px rgba(16, 185, 129, 0.25);
+    }
+    .huge-tick-sign {
+      font-size: 72px;
+      color: #059669;
+      line-height: 1;
+    }
+    .result-quote-card {
+      background: linear-gradient(135deg, #fffbeb, #fef3c7);
+      border: 1px solid #fde68a;
+      border-radius: 20px;
+      padding: 18px 20px;
+      margin: 20px 0 24px;
+      text-align: left;
+    }
+    .quote-text {
+      font-size: 14px;
+      font-weight: 600;
+      color: #78350f;
+      font-style: italic;
+      line-height: 1.5;
+    }
+    .quote-author {
+      font-size: 11px;
+      font-weight: 800;
+      color: #92400e;
+      margin-top: 8px;
+      text-align: right;
+    }
+
+    /* Primary and Secondary Action Buttons */
+    .btn-main {
+      width: 100%;
+      padding: 15px;
+      background: linear-gradient(135deg, #0d9488, #059669);
+      color: white;
+      border: none;
+      border-radius: 16px;
+      font-size: 14px;
+      font-weight: 800;
+      cursor: pointer;
+      box-shadow: 0 10px 20px -5px rgba(13, 148, 136, 0.4);
+      transition: all 0.2s;
+    }
+    .btn-main:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 12px 24px -5px rgba(13, 148, 136, 0.5);
+    }
+    .btn-sub {
+      width: 100%;
+      padding: 12px;
+      background: #e2e8f0;
+      color: #334155;
+      border: none;
+      border-radius: 14px;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+      margin-top: 10px;
+    }
+
+    /* Four Buttons at the Bottom ("home", "Calendar", "Tasks completed", "user settings") */
+    .bottom-navbar {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      max-width: 440px;
+      margin: 0 auto;
+      background: rgba(255, 255, 255, 0.96);
+      backdrop-filter: blur(10px);
+      border-top: 1px solid #e2e8f0;
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      padding: 8px 6px;
+      z-index: 40;
+    }
+    @media (min-width: 640px) {
+      .bottom-navbar {
+        border-bottom-left-radius: 36px;
+        border-bottom-right-radius: 36px;
+      }
+    }
+    .nav-button {
+      background: none;
+      border: none;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 6px 2px;
+      border-radius: 14px;
+      cursor: pointer;
+      color: #64748b;
+      font-size: 11px;
+      font-weight: 600;
+      transition: all 0.2s;
+    }
+    .nav-button.active {
+      color: #0f766e;
+      background: #f0fdfa;
+      font-weight: 800;
+    }
+    .nav-button-icon {
+      font-size: 20px;
+      margin-bottom: 2px;
+    }
+
+    /* Canvas Confetti */
+    #confettiCanvas {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      pointer-events: none;
+      z-index: 999;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="confettiCanvas"></canvas>
+  <div id="root"></div>
+
+  <script>
+    // =========================================================================
+    // 1. PROCEDURAL CONFETTI GENERATOR (Offline)
+    // =========================================================================
+    function triggerConfetti() {
+      const canvas = document.getElementById('confettiCanvas');
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+
+      const particles = [];
+      const colors = ['#10b981', '#06b6d4', '#3b82f6', '#ec4899', '#f59e0b', '#8b5cf6'];
+      for (let i = 0; i < 70; i++) {
+        particles.push({
+          x: canvas.width / 2,
+          y: canvas.height * 0.7,
+          vx: (Math.random() - 0.5) * 12,
+          vy: (Math.random() - 0.9) * 14,
+          size: Math.random() * 8 + 4,
+          color: colors[Math.floor(Math.random() * colors.length)],
+          rotation: Math.random() * 360,
+          rotSpeed: (Math.random() - 0.5) * 10,
+          opacity: 1
+        });
+      }
+
+      let frame = 0;
+      function render() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        particles.forEach(p => {
+          p.x += p.vx;
+          p.y += p.vy;
+          p.vy += 0.35;
+          p.rotation += p.rotSpeed;
+          p.opacity -= 0.012;
+
+          ctx.save();
+          ctx.translate(p.x, p.y);
+          ctx.rotate((p.rotation * Math.PI) / 180);
+          ctx.fillStyle = p.color;
+          ctx.globalAlpha = Math.max(0, p.opacity);
+          ctx.fillRect(-p.size / 2, -p.size / 2, p.size, p.size);
+          ctx.restore();
+        });
+
+        frame++;
+        if (frame < 80) requestAnimationFrame(render);
+        else ctx.clearRect(0, 0, canvas.width, canvas.height);
+      }
+      render();
+    }
+
+    // =========================================================================
+    // 2. WEB AUDIO API SYNTHESIZER (6 Ringtones + Alarms + Chimes)
+    // =========================================================================
+    class SoundEngine {
+      constructor() {
+        this.ctx = null;
+        this.alarmInterval = null;
+      }
+      init() {
+        if (!this.ctx) {
+          const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+          if (AudioContextClass) this.ctx = new AudioContextClass();
+        }
+        if (this.ctx && this.ctx.state === 'suspended') {
+          this.ctx.resume();
+        }
+      }
+      playChime() {
+        this.init();
+        if (!this.ctx) return;
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(523.25, now);
+        osc.frequency.setValueAtTime(659.25, now + 0.08);
+        osc.frequency.setValueAtTime(783.99, now + 0.16);
+        osc.frequency.setValueAtTime(1046.50, now + 0.24);
+
+        gain.gain.setValueAtTime(0.2, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.65);
+
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start(now);
+        osc.stop(now + 0.7);
+      }
+      playRingtone(ringtoneId, preview = true, loop = false) {
+        this.init();
+        if (!this.ctx) return;
+
+        const pattern = () => {
+          const now = this.ctx.currentTime;
+          const gain = this.ctx.createGain();
+          gain.connect(this.ctx.destination);
+
+          if (ringtoneId === 'chime') {
+            [1318.51, 1661.22, 1975.53].forEach((f, i) => {
+              const o = this.ctx.createOscillator();
+              const g = this.ctx.createGain();
+              o.type = 'sine';
+              o.frequency.setValueAtTime(f, now + i * 0.18);
+              g.gain.setValueAtTime(0.2, now + i * 0.18);
+              g.gain.exponentialRampToValueAtTime(0.001, now + i * 0.18 + 0.7);
+              o.connect(g);
+              g.connect(gain);
+              o.start(now + i * 0.18);
+              o.stop(now + i * 0.18 + 0.75);
+            });
+          } else if (ringtoneId === 'digital') {
+            for (let i = 0; i < 4; i++) {
+              const o = this.ctx.createOscillator();
+              const g = this.ctx.createGain();
+              o.type = 'square';
+              o.frequency.setValueAtTime(880, now + i * 0.14);
+              g.gain.setValueAtTime(0.12, now + i * 0.14);
+              g.gain.exponentialRampToValueAtTime(0.001, now + i * 0.14 + 0.08);
+              o.connect(g);
+              g.connect(gain);
+              o.start(now + i * 0.14);
+              o.stop(now + i * 0.14 + 0.09);
+            }
+          } else if (ringtoneId === 'marimba') {
+            [440, 554.37, 659.25, 880].forEach((f, i) => {
+              const o = this.ctx.createOscillator();
+              const g = this.ctx.createGain();
+              o.type = 'triangle';
+              o.frequency.setValueAtTime(f, now + i * 0.12);
+              g.gain.setValueAtTime(0.25, now + i * 0.12);
+              g.gain.exponentialRampToValueAtTime(0.001, now + i * 0.12 + 0.3);
+              o.connect(g);
+              g.connect(gain);
+              o.start(now + i * 0.12);
+              o.stop(now + i * 0.12 + 0.35);
+            });
+          } else if (ringtoneId === 'zen') {
+            const o = this.ctx.createOscillator();
+            const g = this.ctx.createGain();
+            o.type = 'sine';
+            o.frequency.setValueAtTime(220, now);
+            g.gain.setValueAtTime(0.3, now);
+            g.gain.exponentialRampToValueAtTime(0.0001, now + 1.8);
+            o.connect(g);
+            g.connect(gain);
+            o.start(now);
+            o.stop(now + 1.85);
+          } else if (ringtoneId === 'harp') {
+            [392.00, 493.88, 587.33, 783.99, 987.77].forEach((f, i) => {
+              const o = this.ctx.createOscillator();
+              const g = this.ctx.createGain();
+              o.type = 'sine';
+              o.frequency.setValueAtTime(f, now + i * 0.1);
+              g.gain.setValueAtTime(0.18, now + i * 0.1);
+              g.gain.exponentialRampToValueAtTime(0.001, now + i * 0.1 + 0.5);
+              o.connect(g);
+              g.connect(gain);
+              o.start(now + i * 0.1);
+              o.stop(now + i * 0.1 + 0.55);
+            });
+          } else {
+            for (let i = 0; i < 3; i++) {
+              const o = this.ctx.createOscillator();
+              const g = this.ctx.createGain();
+              o.type = 'sawtooth';
+              o.frequency.setValueAtTime(1046.50, now + i * 0.18);
+              g.gain.setValueAtTime(0.12, now + i * 0.18);
+              g.gain.exponentialRampToValueAtTime(0.001, now + i * 0.18 + 0.1);
+              o.connect(g);
+              g.connect(gain);
+              o.start(now + i * 0.18);
+              o.stop(now + i * 0.18 + 0.12);
+            }
+          }
+        };
+
+        pattern();
+        if (loop) {
+          this.stopAlarm();
+          this.alarmInterval = setInterval(pattern, 2200);
+        }
+      }
+      stopAlarm() {
+        if (this.alarmInterval) {
+          clearInterval(this.alarmInterval);
+          this.alarmInterval = null;
+        }
+      }
+    }
+    const soundEngine = new SoundEngine();
+
+    // =========================================================================
+    // 3. TAGS & PASTEL COLOR PALETTES
+    // =========================================================================
+    const TASK_TAGS = [
+      { id: 'work', label: 'Work', bg: '#E0F2FE', text: '#0369A1', border: '#BAE6FD' },
+      { id: 'meeting', label: 'Meeting', bg: '#EDE9FE', text: '#6D28D9', border: '#DDD6FE' },
+      { id: 'personal', label: 'Personal', bg: '#FFE4E6', text: '#BE123C', border: '#FECDD3' },
+      { id: 'health', label: 'Health', bg: '#DCFCE7', text: '#15803D', border: '#BBF7D0' },
+      { id: 'study', label: 'Study', bg: '#FEF3C7', text: '#B45309', border: '#FDE68A' },
+      { id: 'shopping', label: 'Shopping', bg: '#FFEDD5', text: '#C2410C', border: '#FED7AA' },
+      { id: 'finance', label: 'Finance', bg: '#CCFBF1', text: '#0F766E', border: '#99F6E4' },
+      { id: 'urgent', label: 'Urgent', bg: '#FEE2E2', text: '#B91C1C', border: '#FECACA' }
+    ];
+
+    const RINGTONES = [
+      { id: 'chime', name: 'Gentle Chime', desc: 'Harmonic crystal bell', icon: '🔔' },
+      { id: 'digital', name: 'Digital Alarm', desc: 'Modern electronic pulse', icon: '⏰' },
+      { id: 'marimba', name: 'Marimba Melody', desc: 'Warm wooden percussion', icon: '🎶' },
+      { id: 'zen', name: 'Zen Gong', desc: 'Deep peaceful resonance', icon: '🧘' },
+      { id: 'harp', name: 'Morning Harp', desc: 'Sweet ascending arpeggio', icon: '🎵' },
+      { id: 'classic', name: 'Classic Beep', desc: 'Standard alert tone', icon: '🚨' }
+    ];
+
+    const MOTIVATIONAL_QUOTES = [
+      { quote: "Small daily improvements over time lead to stunning results.", author: "Robin Sharma" },
+      { quote: "Productivity is never an accident. It is always the result of a commitment to excellence.", author: "Paul J. Meyer" },
+      { quote: "You don't have to be extreme, just consistent. Every remembered task is a victory.", author: "James Clear" },
+      { quote: "Action is the foundational key to all success.", author: "Pablo Picasso" },
+      { quote: "Focus on being productive instead of busy.", author: "Tim Ferriss" },
+      { quote: "The secret of getting ahead is getting started and finishing strong.", author: "Mark Twain" }
+    ];
+
+    const formatTimeDisplay = (time24) => {
+      if (!time24) return '';
+      const [h, m] = time24.split(':').map(Number);
+      const period = h >= 12 ? 'PM' : 'AM';
+      const h12 = h % 12 || 12;
+      return `${String(h12).padStart(2, '0')}:${String(m).padStart(2, '0')} ${period}`;
+    };
+
+    const getTodayDateString = (d = new Date()) => {
+      const year = d.getFullYear();
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    };
+
+    const getCurrentTimeString = (d = new Date()) => {
+      const h = String(d.getHours()).padStart(2, '0');
+      const m = String(d.getMinutes()).padStart(2, '0');
+      return `${h}:${m}`;
+    };
+
+    // =========================================================================
+    // 4. BACKEND API CLIENT
+    // =========================================================================
+    const API = {
+      token: localStorage.getItem('remind_me_token') || '',
+      setToken(tok) {
+        this.token = tok;
+        if (tok) localStorage.setItem('remind_me_token', tok);
+        else localStorage.removeItem('remind_me_token');
+      },
+      headers() {
+        const h = { 'Content-Type': 'application/json' };
+        if (this.token) h['Authorization'] = `Bearer ${this.token}`;
+        return h;
+      },
+      async register(name, email, password) {
+        const res = await fetch('/api/auth/register', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name, email, password })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Failed to register');
+        this.setToken(data.token);
+        return data;
+      },
+      async login(email, password) {
+        const res = await fetch('/api/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Failed to login');
+        this.setToken(data.token);
+        return data;
+      },
+      async getMe() {
+        if (!this.token) return null;
+        try {
+          const res = await fetch('/api/auth/me', { headers: this.headers() });
+          if (!res.ok) return null;
+          const data = await res.json();
+          return data.user;
+        } catch {
+          return null;
+        }
+      },
+      async logout() {
+        try {
+          await fetch('/api/auth/logout', { method: 'POST', headers: this.headers() });
+        } catch {}
+        this.setToken('');
+      },
+      async getTasks(date) {
+        try {
+          const url = date ? `/api/tasks?date=${date}` : '/api/tasks';
+          const res = await fetch(url, { headers: this.headers() });
+          if (!res.ok) throw new Error();
+          const data = await res.json();
+          return data.tasks || [];
+        } catch {
+          const local = localStorage.getItem('remind_me_user_tasks');
+          return local ? JSON.parse(local) : [];
+        }
+      },
+      async createTask(task) {
+        try {
+          const res = await fetch('/api/tasks', {
+            method: 'POST',
+            headers: this.headers(),
+            body: JSON.stringify(task)
+          });
+          if (!res.ok) throw new Error();
+          const data = await res.json();
+          return data.task;
+        } catch {
+          return { ...task, id: 'task-user-' + Date.now() };
+        }
+      },
+      async updateTask(id, updates) {
+        try {
+          const res = await fetch(`/api/tasks/${id}`, {
+            method: 'PUT',
+            headers: this.headers(),
+            body: JSON.stringify(updates)
+          });
+          if (!res.ok) throw new Error();
+          const data = await res.json();
+          return data.task;
+        } catch {
+          return updates;
+        }
+      },
+      async deleteTask(id) {
+        try {
+          await fetch(`/api/tasks/${id}`, { method: 'DELETE', headers: this.headers() });
+        } catch {}
+      },
+      async getHistory() {
+        try {
+          const res = await fetch('/api/history', { headers: this.headers() });
+          if (!res.ok) throw new Error();
+          return await res.json();
+        } catch {
+          return { records: [], stats: { totalCompleted: 0, todayCompleted: 0, accuracyRate: 100, streakDays: 1, tagCounts: {} } };
+        }
+      }
+    };
+
+    // =========================================================================
+    // 5. REACT COMPONENT
+    // =========================================================================
+    const { useState, useEffect, useMemo, useRef } = window.preactHooks || (window.React && window.React) || {};
+    const h = window.preact ? window.preact.h : (window.React ? window.React.createElement : null);
+
+    function App() {
+      // Screens: 'home' | 'create' | 'result' | 'calendar' | 'completed' | 'settings'
+      const [currentScreen, setCurrentScreen] = useState('home');
+
+      // Tasks state: Starts 100% EMPTY as requested by the user
+      const [tasks, setTasks] = useState(() => {
+        try {
+          const saved = localStorage.getItem('remind_me_user_tasks');
+          return saved ? JSON.parse(saved) : [];
+        } catch {
+          return [];
+        }
+      });
+
+      // User & Auth
+      const [currentUser, setCurrentUser] = useState(null);
+      const [showLoginModal, setShowLoginModal] = useState(false);
+      const [loginTab, setLoginTab] = useState('login'); // 'login' | 'register'
+      const [authError, setAuthError] = useState('');
+
+      // Device Clock & Calendar State
+      const [selectedDate, setSelectedDate] = useState(getTodayDateString());
+      const [deviceTime, setDeviceTime] = useState(new Date());
+
+      // Alarm & Popup State
+      const [activeAlarmTask, setActiveAlarmTask] = useState(null);
+      const [alarmDismissedIds, setAlarmDismissedIds] = useState([]);
+      const [celebrationToast, setCelebrationToast] = useState({ show: false, taskName: '' });
+
+      // History records from backend
+      const [historyData, setHistoryData] = useState({ records: [], stats: {} });
+
+      // Save tasks locally
+      useEffect(() => {
+        localStorage.setItem('remind_me_user_tasks', JSON.stringify(tasks));
+      }, [tasks]);
+
+      // Check current user on load
+      useEffect(() => {
+        API.getMe().then(user => {
+          if (user) {
+            setCurrentUser(user);
+            API.getTasks().then(t => { if (t) setTasks(t); });
+            API.getHistory().then(h => { if (h) setHistoryData(h); });
+          }
+        });
+      }, []);
+
+      // Real-time Clock Ticker & Upcoming Task Alarm
+      useEffect(() => {
+        const timer = setInterval(() => {
+          const now = new Date();
+          setDeviceTime(now);
+
+          const curDate = getTodayDateString(now);
+          const curTime = getCurrentTimeString(now);
+
+          // Check if any upcoming task of the day has its time arrive
+          tasks.forEach(task => {
+            if (
+              !task.completed &&
+              task.date === curDate &&
+              task.startTime === curTime &&
+              !alarmDismissedIds.includes(`${task.id}-${curTime}`) &&
+              (!activeAlarmTask || activeAlarmTask.id !== task.id)
+            ) {
+              setActiveAlarmTask(task);
+              soundEngine.playRingtone(task.ringtone || 'chime', false, true);
+            }
+          });
+        }, 1000);
+        return () => clearInterval(timer);
+      }, [tasks, activeAlarmTask, alarmDismissedIds]);
+
+      // Handle Ticking the Task Box
+      const handleToggleTask = async (taskId) => {
+        let taskNameCompleted = '';
+        const updatedTasks = tasks.map(t => {
+          if (t.id === taskId) {
+            const nextVal = !t.completed;
+            if (nextVal) taskNameCompleted = t.name;
+            return { ...t, completed: nextVal };
+          }
+          return t;
+        });
+
+        setTasks(updatedTasks);
+
+        // Sync with backend
+        const target = updatedTasks.find(t => t.id === taskId);
+        if (target) {
+          API.updateTask(taskId, { completed: target.completed }).then(() => {
+            API.getHistory().then(h => { if (h) setHistoryData(h); });
+          });
+        }
+
+        if (taskNameCompleted) {
+          soundEngine.playChime();
+          triggerConfetti();
+
+          // Small popup: "Congratulations, you remembered your task"
+          setCelebrationToast({ show: true, taskName: taskNameCompleted });
+          setTimeout(() => setCelebrationToast({ show: false, taskName: '' }), 3000);
+
+          // After they complete all the tasks of that day, get redirected:
+          const todayTasks = updatedTasks.filter(t => t.date === selectedDate);
+          if (todayTasks.length > 0 && todayTasks.every(t => t.completed)) {
+            setTimeout(() => {
+              // As specified: "After they complete all the tasks, they get redirected to the second screen. The second screen has the main action, and is known as the 'Create New Task' screen."
+              // "and after completing all the tasks of the day, they get redirected to the third screen. The third screen is the result screen."
+              setCurrentScreen('result');
+            }, 1200);
+          }
+        }
+      };
+
+      // Create a New Task (Screen 2 -> Screen 1)
+      const handleCreateTask = async (taskData) => {
+        const created = await API.createTask(taskData);
+        setTasks(prev => [created || taskData, ...prev]);
+        setCurrentScreen('home'); // redirects back to the main screen
+      };
+
+      // Delete Task
+      const handleDeleteTask = async (taskId) => {
+        setTasks(prev => prev.filter(t => t.id !== taskId));
+        await API.deleteTask(taskId);
+      };
+
+      // Dismiss/Snooze Alarm
+      const handleDismissAlarm = (snooze = false) => {
+        soundEngine.stopAlarm();
+        if (activeAlarmTask) {
+          const curTime = getCurrentTimeString(deviceTime);
+          setAlarmDismissedIds(prev => [...prev, `${activeAlarmTask.id}-${curTime}`]);
+          if (snooze) {
+            const [h, m] = activeAlarmTask.startTime.split(':').map(Number);
+            const total = h * 60 + m + 5;
+            const newH = String(Math.floor(total / 60) % 24).padStart(2, '0');
+            const newM = String(total % 60).padStart(2, '0');
+            setTasks(prev => prev.map(t => t.id === activeAlarmTask.id ? { ...t, startTime: `${newH}:${newM}` } : t));
+          }
+        }
+        setActiveAlarmTask(null);
+      };
+
+      // Auth Handlers
+      const handleLogin = async (email, password) => {
+        try {
+          setAuthError('');
+          const res = await API.login(email, password);
+          setCurrentUser(res.user);
+          setShowLoginModal(false);
+          API.getTasks().then(t => { if (t) setTasks(t); });
+          API.getHistory().then(h => { if (h) setHistoryData(h); });
+        } catch (err) {
+          setAuthError(err.message);
+        }
+      };
+
+      const handleRegister = async (name, email, password) => {
+        try {
+          setAuthError('');
+          if (!name || !name.trim()) {
+            setAuthError('Please enter your name.');
+            return;
+          }
+          const emailTrimmed = (email || '').trim().toLowerCase();
+          const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+          if (!emailPattern.test(emailTrimmed)) {
+            setAuthError('Please enter a valid email address.');
+            return;
+          }
+          if (!password || password.length < 8) {
+            setAuthError('Password must be at least 8 characters long.');
+            return;
+          }
+          const res = await API.register(name, emailTrimmed, password);
+          setCurrentUser(res.user);
+          setShowLoginModal(false);
+          API.getTasks().then(t => { if (t) setTasks(t); });
+          API.getHistory().then(h => { if (h) setHistoryData(h); });
+        } catch (err) {
+          setAuthError(err.message);
+        }
+      };
+
+      const handleLogout = async () => {
+        await API.logout();
+        setCurrentUser(null);
+        setTasks([]);
+        setHistoryData({ records: [], stats: {} });
+      };
+
+      // Filter tasks for the selected date
+      const tasksToday = useMemo(() => tasks.filter(t => t.date === selectedDate), [tasks, selectedDate]);
+
+      return h('div', { className: 'app-card' },
+
+        // =====================================================================
+        // HEADER: "Remind me" & LINKED DEVICE CLOCK & CALENDAR
+        // =====================================================================
+        h('header', { className: 'main-header' },
+          h('div', { className: 'app-title-group', onClick: () => setCurrentScreen('home') },
+            h('div', { className: 'app-logo' }, '🔔'),
+            h('h1', { className: 'app-title' }, 'Remind me')
+          ),
+          h('div', { className: 'device-sync-badge' },
+            h('div', { className: 'clock-display' },
+              h('span', { className: 'live-dot' }),
+              h('span', null, deviceTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }))
+            ),
+            h('div', { className: 'date-display' },
+              deviceTime.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })
+            )
+          )
+        ),
+
+        // ACTIVE ALARM MODAL (When an upcoming task's time arrives)
+        activeAlarmTask && h('div', { className: 'alarm-backdrop' },
+          h('div', { className: 'alarm-box' },
+            h('div', { style: { fontSize: '44px', marginBottom: '8px' } }, '🔔'),
+            h('div', { style: { fontSize: '12px', fontWeight: '800', color: '#b45309', textTransform: 'uppercase', marginBottom: '4px' } }, 'Upcoming Task Alarm!'),
+            h('h3', { style: { fontSize: '19px', fontWeight: '800', color: '#0f172a', marginBottom: '6px' } }, activeAlarmTask.name),
+            h('p', { style: { fontSize: '12px', color: '#64748b', marginBottom: '16px' } }, `Scheduled for ${formatTimeDisplay(activeAlarmTask.startTime)} today`),
+            h('button', {
+              className: 'btn-main',
+              style: { marginBottom: '8px' },
+              onClick: () => { handleToggleTask(activeAlarmTask.id); handleDismissAlarm(false); }
+            }, '✓ I Remembered! (Done)'),
+            h('div', { style: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' } },
+              h('button', { className: 'btn-sub', style: { margin: 0 }, onClick: () => handleDismissAlarm(true) }, '💤 Snooze 5 Min'),
+              h('button', { className: 'btn-sub', style: { margin: 0 }, onClick: () => handleDismissAlarm(false) }, 'Dismiss')
+            )
+          )
+        ),
+
+        // CONGRATULATIONS POPUP
+        celebrationToast.show && h('div', { className: 'congrats-popup' },
+          h('span', { style: { fontSize: '24px' } }, '🎉'),
+          h('div', { style: { flex: 1 } },
+            h('div', { style: { fontSize: '13px', fontWeight: '800' } }, 'Congratulations, you remembered your task'),
+            h('div', { style: { fontSize: '11px', opacity: 0.95 } }, `"${celebrationToast.taskName}"`)
+          ),
+          h('button', {
+            style: { background: 'none', border: 'none', color: 'white', fontSize: '16px', cursor: 'pointer' },
+            onClick: () => setCelebrationToast({ show: false, taskName: '' })
+          }, '✕')
+        ),
+
+        // LOGIN / REGISTER MODAL
+        showLoginModal && h('div', { className: 'alarm-backdrop' },
+          h('div', { style: { background: 'white', borderRadius: '24px', padding: '24px', width: '100%', maxWidth: '360px' } },
+            h('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' } },
+              h('h3', { style: { fontSize: '18px', fontWeight: '800' } }, loginTab === 'login' ? 'Sign In to Remind Me' : 'Create Account'),
+              h('button', { style: { border: 'none', background: 'none', fontSize: '18px', cursor: 'pointer' }, onClick: () => setShowLoginModal(false) }, '✕')
+            ),
+            h('div', { style: { display: 'flex', background: '#e2e8f0', padding: '2px', borderRadius: '10px', marginBottom: '12px' } },
+              h('button', {
+                style: { flex: 1, padding: '6px', border: 'none', borderRadius: '8px', fontWeight: '700', fontSize: '12px', background: loginTab === 'login' ? 'white' : 'none', cursor: 'pointer' },
+                onClick: () => { setLoginTab('login'); setAuthError(''); }
+              }, 'Sign In'),
+              h('button', {
+                style: { flex: 1, padding: '6px', border: 'none', borderRadius: '8px', fontWeight: '700', fontSize: '12px', background: loginTab === 'register' ? 'white' : 'none', cursor: 'pointer' },
+                onClick: () => { setLoginTab('register'); setAuthError(''); }
+              }, 'Register')
+            ),
+            authError && h('div', { style: { color: '#dc2626', fontSize: '11px', fontWeight: '700', marginBottom: '10px' } }, authError),
+            h('form', {
+              onSubmit: (e) => {
+                e.preventDefault();
+                const fd = new FormData(e.target);
+                if (loginTab === 'login') handleLogin(fd.get('email'), fd.get('password'));
+                else handleRegister(fd.get('name'), fd.get('email'), fd.get('password'));
+              }
+            },
+              loginTab === 'register' && h('div', { style: { marginBottom: '10px' } },
+                h('label', { style: { fontSize: '11px', fontWeight: '700', display: 'block', marginBottom: '4px' } }, 'Name'),
+                h('input', { name: 'name', required: true, className: 'form-input', placeholder: 'Your name' })
+              ),
+              h('div', { style: { marginBottom: '10px' } },
+                h('label', { style: { fontSize: '11px', fontWeight: '700', display: 'block', marginBottom: '4px' } }, 'Email'),
+                h('input', { name: 'email', type: 'email', required: true, className: 'form-input', placeholder: 'name@example.com' })
+              ),
+              h('div', { style: { marginBottom: '14px' } },
+                h('label', { style: { fontSize: '11px', fontWeight: '700', display: 'block', marginBottom: '4px' } }, loginTab === 'register' ? 'Password (Min 8 chars)' : 'Password'),
+                h('input', {
+                  name: 'password',
+                  type: 'password',
+                  required: true,
+                  className: 'form-input',
+                  placeholder: loginTab === 'register' ? 'At least 8 characters' : '••••••••',
+                  minLength: loginTab === 'register' ? '8' : undefined
+                })
+              ),
+              h('button', { type: 'submit', className: 'btn-main' }, loginTab === 'login' ? 'Sign In' : 'Create Account'),
+              h('button', {
+                type: 'button',
+                className: 'btn-sub',
+                onClick: () => handleLogin('demo@remindme.com', 'password123')
+              }, '⚡ Quick Demo Sign In')
+            )
+          )
+        ),
+
+        // MAIN CONTENT
+        h('main', { className: 'content-area' },
+
+          // ===================================================================
+          // SCREEN 1: FIRST PAGE (Shows App Name & "what's upcoming")
+          // Starts clean with NO default tasks!
+          // ===================================================================
+          currentScreen === 'home' && h('div', null,
+            // "what's upcoming" Section Header
+            h('div', { className: 'upcoming-header' },
+              h('h2', { className: 'upcoming-title' }, "what's upcoming"),
+              h('button', {
+                className: 'add-task-quick-btn',
+                onClick: () => setCurrentScreen('create')
+              }, '+ Create New Task')
+            ),
+
+            // Date Navigator linked with device calendar
+            h('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'white', border: '1px solid #e2e8f0', borderRadius: '14px', padding: '8px 12px', marginBottom: '16px' } },
+              h('button', {
+                style: { border: 'none', background: '#f1f5f9', width: '28px', height: '28px', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold' },
+                onClick: () => {
+                  const parts = selectedDate.split('-').map(Number);
+                  const d = new Date(parts[0], parts[1] - 1, parts[2] - 1);
+                  setSelectedDate(getTodayDateString(d));
+                }
+              }, '◀'),
+              h('div', { style: { textAlign: 'center' } },
+                h('div', { style: { fontSize: '13px', fontWeight: '800', color: '#0f172a' } },
+                  selectedDate === getTodayDateString() ? "Today's Events" : selectedDate
+                ),
+                h('div', { style: { fontSize: '10px', color: '#64748b' } }, selectedDate)
+              ),
+              h('button', {
+                style: { border: 'none', background: '#f1f5f9', width: '28px', height: '28px', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold' },
+                onClick: () => {
+                  const parts = selectedDate.split('-').map(Number);
+                  const d = new Date(parts[0], parts[1] - 1, parts[2] + 1);
+                  setSelectedDate(getTodayDateString(d));
+                }
+              }, '▶')
+            ),
+
+            // LIST OF BOXES WHICH CAN BE TICKED (EVENTS OF THAT DAY WITH TIME)
+            tasksToday.length === 0
+              ? h('div', { className: 'empty-state-box' },
+                  h('div', { className: 'empty-icon' }, '📝'),
+                  h('h3', { className: 'empty-heading' }, 'No tasks added yet for today'),
+                  h('p', { className: 'empty-subtext' }, 'Start remembering everything you need to do! Tap the button below to create your first task.'),
+                  h('button', {
+                    className: 'btn-main',
+                    style: { width: 'auto', padding: '12px 24px' },
+                    onClick: () => setCurrentScreen('create')
+                  }, '+ Create New Task')
+                )
+              : tasksToday.map(task => {
+                  const tag = TASK_TAGS.find(t => t.id === task.tagId) || TASK_TAGS[0];
+                  const ring = RINGTONES.find(r => r.id === task.ringtone) || RINGTONES[0];
+
+                  return h('div', {
+                    key: task.id,
+                    className: `task-card ${task.completed ? 'completed' : ''}`,
+                    style: {
+                      backgroundColor: task.completed ? '#f8fafc' : tag.bg,
+                      borderColor: task.completed ? '#e2e8f0' : tag.border
+                    }
+                  },
+                    // TICK BOX (Empty box beside the task to be ticked)
+                    h('button', {
+                      className: `tick-box ${task.completed ? 'checked' : ''}`,
+                      title: 'Tick to complete task',
+                      onClick: () => handleToggleTask(task.id)
+                    }, task.completed ? '✓' : ''),
+
+                    // TASK DETAILS (Event & Time)
+                    h('div', { className: 'task-details' },
+                      h('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' } },
+                        h('div', { className: 'task-title' }, task.name),
+                        h('button', {
+                          style: { border: 'none', background: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: '13px' },
+                          title: 'Delete task',
+                          onClick: () => handleDeleteTask(task.id)
+                        }, '🗑️')
+                      ),
+                      h('div', { style: { display: 'flex', alignItems: 'center', marginTop: '4px' } },
+                        h('span', { className: 'task-time-pill' }, '⏰', `${formatTimeDisplay(task.startTime)}${task.endTime ? ' - ' + formatTimeDisplay(task.endTime) : ''}`),
+                        h('span', { className: 'task-tag-pill', style: { color: tag.text } }, `#${tag.label}`)
+                      )
+                    )
+                  );
+                }),
+
+            // If tasks are present, also give a direct button to add more tasks
+            tasksToday.length > 0 && h('div', { style: { marginTop: '16px' } },
+              h('button', { className: 'btn-main', onClick: () => setCurrentScreen('create') }, '+ Create New Task')
+            )
+          ),
+
+          // ===================================================================
+          // SCREEN 2: "CREATE NEW TASK" SCREEN (With the 6 Buttons)
+          // ===================================================================
+          currentScreen === 'create' && h('div', { className: 'create-task-screen' },
+            h('div', { className: 'screen-header' },
+              h('h2', { className: 'screen-title' }, 'Create New Task'),
+              h('p', { className: 'screen-desc' }, 'Set your reminder with date, time, and custom ringtone')
+            ),
+
+            h('form', {
+              onSubmit: (e) => {
+                e.preventDefault();
+                const fd = new FormData(e.target);
+                handleCreateTask({
+                  name: fd.get('name'),
+                  date: fd.get('date'),
+                  startTime: fd.get('startTime'),
+                  endTime: fd.get('endTime') || '',
+                  ringtone: fd.get('ringtone'),
+                  tagId: fd.get('tagId'),
+                  completed: false
+                });
+              }
+            },
+              // BUTTON 1: "Task Name" (empty space to type task)
+              h('div', { className: 'control-button-card' },
+                h('label', { className: 'control-label' }, h('span', { className: 'control-num' }, '1'), 'Task Name'),
+                h('input', {
+                  name: 'name',
+                  required: true,
+                  className: 'form-input',
+                  placeholder: 'Type the task you have to complete/remember...'
+                })
+              ),
+
+              // BUTTON 2: "Date" (select date)
+              h('div', { className: 'control-button-card' },
+                h('label', { className: 'control-label' }, h('span', { className: 'control-num' }, '2'), 'Date'),
+                h('input', {
+                  name: 'date',
+                  type: 'date',
+                  required: true,
+                  defaultValue: selectedDate,
+                  className: 'form-input'
+                })
+              ),
+
+              // BUTTON 3: "Start time" (select start time)
+              h('div', { className: 'control-button-card' },
+                h('label', { className: 'control-label' }, h('span', { className: 'control-num' }, '3'), 'Start time'),
+                h('input', {
+                  name: 'startTime',
+                  type: 'time',
+                  required: true,
+                  defaultValue: '10:00',
+                  className: 'form-input'
+                })
+              ),
+
+              // BUTTON 4: "end time" (select end time)
+              h('div', { className: 'control-button-card' },
+                h('label', { className: 'control-label' }, h('span', { className: 'control-num' }, '4'), 'End time'),
+                h('input', {
+                  name: 'endTime',
+                  type: 'time',
+                  defaultValue: '11:00',
+                  className: 'form-input'
+                })
+              ),
+
+              // BUTTON 5: "Remind Me" (choose ringtone)
+              h('div', { className: 'control-button-card' },
+                h('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' } },
+                  h('label', { className: 'control-label', style: { margin: 0 } }, h('span', { className: 'control-num' }, '5'), 'Remind Me (Choose Ringtone)'),
+                  h('button', {
+                    type: 'button',
+                    style: { background: '#f1f5f9', border: '1px solid #cbd5e1', padding: '2px 8px', borderRadius: '6px', fontSize: '10px', cursor: 'pointer' },
+                    onClick: () => {
+                      const sel = document.querySelector('select[name="ringtone"]');
+                      soundEngine.playRingtone(sel ? sel.value : 'chime', true);
+                    }
+                  }, '▶ Test Sound')
+                ),
+                h('select', { name: 'ringtone', className: 'form-input', defaultValue: 'chime' },
+                  RINGTONES.map(r => h('option', { key: r.id, value: r.id }, `${r.icon} ${r.name} - ${r.desc}`))
+                )
+              ),
+
+              // BUTTON 6: "Type of task" (tags with pastel shades)
+              h('div', { className: 'control-button-card' },
+                h('label', { className: 'control-label' }, h('span', { className: 'control-num' }, '6'), 'Type of task (Category & Pastel Color)'),
+                h('select', { name: 'tagId', className: 'form-input', defaultValue: 'work' },
+                  TASK_TAGS.map(t => h('option', { key: t.id, value: t.id }, `${t.label} (Pastel ${t.id})`))
+                )
+              ),
+
+              h('button', { type: 'submit', className: 'btn-main' }, '✓ Save Task & Set Reminder'),
+              h('button', { type: 'button', className: 'btn-sub', onClick: () => setCurrentScreen('home') }, 'Cancel & Back to Main Screen')
+            )
+          ),
+
+          // ===================================================================
+          // SCREEN 3: RESULT SCREEN (Huge Tick Mark & Motivational Quote)
+          // ===================================================================
+          currentScreen === 'result' && h('div', { className: 'result-screen' },
+            // Huge Tick Mark Sign
+            h('div', { className: 'huge-tick-circle' },
+              h('div', { className: 'huge-tick-sign' }, '✓')
+            ),
+            h('h2', { style: { fontSize: '24px', fontWeight: '900', color: '#0f172a', marginBottom: '6px' } }, 'All Tasks Completed!'),
+            h('p', { style: { fontSize: '13px', color: '#64748b' } }, 'You remembered every single task for today! Great accomplishment!'),
+
+            // Small Little Quote to keep them motivated
+            h('div', { className: 'result-quote-card' },
+              h('div', { className: 'quote-text' }, `“${MOTIVATIONAL_QUOTES[0].quote}”`),
+              h('div', { className: 'quote-author' }, `— ${MOTIVATIONAL_QUOTES[0].author}`)
+            ),
+
+            // The button at the end: "back to home"
+            h('button', { className: 'btn-main', onClick: () => setCurrentScreen('home') }, '🏠 Back to home'),
+            h('button', { className: 'btn-sub', onClick: () => setCurrentScreen('create') }, '+ Create Another Task')
+          ),
+
+          // ===================================================================
+          // SCREEN 4: CALENDAR
+          // ===================================================================
+          currentScreen === 'calendar' && h('div', null,
+            h('h2', { style: { fontSize: '20px', fontWeight: '800', color: '#0f172a', marginBottom: '4px' } }, 'Device Calendar'),
+            h('p', { style: { fontSize: '12px', color: '#64748b', marginBottom: '14px' } }, 'Linked with your device date and calendar'),
+            h('div', { style: { background: 'white', padding: '20px', borderRadius: '20px', border: '1px solid #e2e8f0', textAlign: 'center' } },
+              h('div', { style: { fontSize: '14px', fontWeight: '800', marginBottom: '10px' } }, 'Select Date to View Events:'),
+              h('input', {
+                type: 'date',
+                className: 'form-input',
+                defaultValue: selectedDate,
+                onChange: (e) => setSelectedDate(e.target.value)
+              }),
+              h('div', { style: { marginTop: '16px', display: 'flex', gap: '8px' } },
+                h('button', { className: 'btn-main', onClick: () => setCurrentScreen('home') }, 'View Tasks for Date'),
+                h('button', {
+                  className: 'btn-sub',
+                  style: { margin: 0 },
+                  onClick: () => {
+                    let ics = "BEGIN:VCALENDAR\nVERSION:2.0\nPRODID:-//Remind Me App//EN\n";
+                    tasks.forEach(t => {
+                      ics += `BEGIN:VEVENT\nSUMMARY:${t.name}\nDTSTART:${t.date.replace(/-/g,'')}T090000Z\nEND:VEVENT\n`;
+                    });
+                    ics += "END:VCALENDAR";
+                    const blob = new Blob([ics], { type: 'text/calendar' });
+                    const a = document.createElement('a');
+                    a.href = URL.createObjectURL(blob);
+                    a.download = 'remind_me.ics';
+                    a.click();
+                  }
+                }, '📥 Export .ICS')
+              )
+            )
+          ),
+
+          // ===================================================================
+          // SCREEN 5: TASKS COMPLETED (History & Records)
+          // ===================================================================
+          currentScreen === 'completed' && h('div', null,
+            h('h2', { style: { fontSize: '20px', fontWeight: '800', color: '#0f172a', marginBottom: '4px' } }, 'Tasks Completed'),
+            h('p', { style: { fontSize: '12px', color: '#64748b', marginBottom: '14px' } }, 'Your record and history of remembered tasks'),
+
+            (historyData.records && historyData.records.length > 0)
+              ? historyData.records.map(rec => h('div', {
+                  key: rec.id,
+                  style: { background: 'white', padding: '12px 14px', borderRadius: '14px', border: '1px solid #e2e8f0', marginBottom: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }
+                },
+                  h('div', null,
+                    h('div', { style: { fontSize: '14px', fontWeight: '700', color: '#0f172a' } }, '✓ ' + rec.taskName),
+                    h('div', { style: { fontSize: '11px', color: '#64748b' } }, `${rec.date} • Completed`)
+                  ),
+                  h('span', { style: { fontSize: '11px', fontWeight: '800', background: '#f1f5f9', padding: '3px 8px', borderRadius: '6px' } }, `#${rec.tagId}`)
+                ))
+              : tasks.filter(t => t.completed).length > 0
+              ? tasks.filter(t => t.completed).map(t => h('div', {
+                  key: t.id,
+                  style: { background: 'white', padding: '12px 14px', borderRadius: '14px', border: '1px solid #e2e8f0', marginBottom: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }
+                },
+                  h('div', null,
+                    h('div', { style: { fontSize: '14px', fontWeight: '700', color: '#0f172a' } }, '✓ ' + t.name),
+                    h('div', { style: { fontSize: '11px', color: '#64748b' } }, `${t.date} • Completed`)
+                  ),
+                  h('span', { style: { fontSize: '11px', fontWeight: '800', background: '#f1f5f9', padding: '3px 8px', borderRadius: '6px' } }, `#${t.tagId}`)
+                ))
+              : h('div', { className: 'empty-state-box' },
+                  h('div', { className: 'empty-icon' }, '📋'),
+                  h('h3', { className: 'empty-heading' }, 'No completed tasks yet'),
+                  h('p', { className: 'empty-subtext' }, 'Tick tasks on your main screen to see them recorded here!')
+                )
+          ),
+
+          // ===================================================================
+          // SCREEN 6: USER SETTINGS
+          // ===================================================================
+          currentScreen === 'settings' && h('div', null,
+            h('h2', { style: { fontSize: '20px', fontWeight: '800', color: '#0f172a', marginBottom: '4px' } }, 'User Settings'),
+            h('p', { style: { fontSize: '12px', color: '#64748b', marginBottom: '14px' } }, 'Device configuration, alarm sound, and account records'),
+
+            h('div', { className: 'control-button-card' },
+              h('h4', { style: { fontSize: '13px', fontWeight: '800', marginBottom: '8px' } }, '🔔 Alarm Sound Testing'),
+              h('button', {
+                className: 'btn-sub',
+                style: { margin: 0 },
+                onClick: () => soundEngine.playRingtone('chime', true)
+              }, '▶ Test Chime Ringtone')
+            ),
+
+            h('div', { className: 'control-button-card' },
+              h('h4', { style: { fontSize: '13px', fontWeight: '800', marginBottom: '8px' } }, '👤 User Account & Records'),
+              currentUser
+                ? h('div', null,
+                    h('p', { style: { fontSize: '12px', color: '#64748b', marginBottom: '10px' } }, `Logged in as ${currentUser.name} (${currentUser.email})`),
+                    h('button', { className: 'btn-sub', onClick: handleLogout }, 'Sign Out')
+                  )
+                : h('button', { className: 'btn-main', onClick: () => { setLoginTab('login'); setShowLoginModal(true); } }, 'Sign In / Register Account')
+            )
+          )
+
+        ),
+
+        // =====================================================================
+        // FOUR BUTTONS AT THE BOTTOM: "home", "Calendar", "Tasks completed", "user settings"
+        // =====================================================================
+        h('nav', { className: 'bottom-navbar' },
+          h('button', {
+            className: `nav-button ${currentScreen === 'home' ? 'active' : ''}`,
+            onClick: () => setCurrentScreen('home')
+          },
+            h('span', { className: 'nav-button-icon' }, '🏠'),
+            h('span', null, 'home')
+          ),
+          h('button', {
+            className: `nav-button ${currentScreen === 'calendar' ? 'active' : ''}`,
+            onClick: () => setCurrentScreen('calendar')
+          },
+            h('span', { className: 'nav-button-icon' }, '📅'),
+            h('span', null, 'Calendar')
+          ),
+          h('button', {
+            className: `nav-button ${currentScreen === 'completed' ? 'active' : ''}`,
+            onClick: () => {
+              API.getHistory().then(h => { if (h) setHistoryData(h); });
+              setCurrentScreen('completed');
+            }
+          },
+            h('span', { className: 'nav-button-icon' }, '✅'),
+            h('span', null, 'Tasks completed')
+          ),
+          h('button', {
+            className: `nav-button ${currentScreen === 'settings' ? 'active' : ''}`,
+            onClick: () => setCurrentScreen('settings')
+          },
+            h('span', { className: 'nav-button-icon' }, '⚙️'),
+            h('span', null, 'user settings')
+          )
+        )
+
+      );
+    }
+
+    // Mount App
+    const root = document.getElementById('root');
+    if (window.preact) {
+      window.preact.render(h(App), root);
+    } else if (window.ReactDOM) {
+      window.ReactDOM.render(h(App), root);
+    }
+  </script>
+</body>
+</html>

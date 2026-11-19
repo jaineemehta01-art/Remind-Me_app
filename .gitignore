@@ -1,0 +1,21 @@
+# Dependencies
+node_modules/
+
+# Environment and sensitive keys
+.env
+.env.local
+.env.*.local
+*.env
+
+# Local database and persistent user records
+data/*.json
+!data/.gitkeep
+
+# Backups and temporary files
+backup/
+*.bak
+*.log
+
+# OS generated files
+.DS_Store
+Thumbs.db
